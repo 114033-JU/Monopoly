@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>谿山行旅圖 - 藝術大富翁</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@400;700&display=swap');
+        
+        body {
+            font-family: 'Noto Serif TC', serif;
+            background-color: #f4f1ea;
+            color: #3e3a36;
+            margin: 0;
+            overflow: hidden;
+        }
+
+        .board-container {
+            display: grid;
+            grid-template-columns: repeat(6, 1fr);
+            grid-template-rows: repeat(6, 1fr);
+            width: 95vmin;
+            height: 95vmin;
+            margin: auto;
+            border: 4px solid #5d5146;
+            background-color: #d9d2c5;
+            position: relative;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        }
+
+        .center-art {
+            grid-column: 2 / 6;
+            grid-row: 2 / 6;
+            background-image: url('https://upload.wikimedia.org/wikipedia/commons/thumb/c/c5/Fan_Kuan_-_Travelers_among_Mountains_and_Streams_-_Google_Art_Project.jpg/600px-Fan_Kuan_-_Travelers_among_Mountains_and_Streams_-_Google_Art_Project.jpg');
+            background-size: cover;
+            background-position: center;
+            border: 2px solid #5d5146;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-end;
+            align-items: center;
+            padding-bottom: 20px;
+            position: relative;
+        }
+
+        .center-overlay {
+            background: rgba(255, 255, 255, 0.7);
+            padding: 10px 20px;
+            border-radius: 8px;
+            text-align: center;
+            max-width: 80%;
+        }
+
+        .cell {
+            border: 1px solid #8c7e6d;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            font-size: 0.75rem;
+            text-align: center;
+            padding: 4px;
+            background-color: #ece7de;
+            position: relative;
+            transition: background 0.3s;
+        }
+
+        .cell-img {
+            width: 100%;
+            height: 50%;
+            object-fit: cover;
+            margin-bottom: 4px;
+            filter: sepia(0.3) contrast(1.1);
+        }
+
+        .active-cell {
+            background-color: #d4c4a8 !important;
+            box-shadow: inset 0 0 10px rgba(0,0,0,0.1);
+        }
+
+        .player {
+            width: 30px;
+            height: 30px;
+            background-color: #b91c1c;
+            border-radius: 50%;
+            position: absolute;
+            z-index: 50;
+            transition: all 0.5s ease-in-out;
+            border: 2px solid white;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            font-weight: bold;
+        }
+
+        .dice-btn {
+            background: #5d5146;
+            color: #f4f1ea;
+            padding: 12px 24px;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: transform 0.1s;
+        }
+
+        .dice-btn:active { transform: scale(0.95); }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.7);
+            z-index: 100;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal-content {
+            background: #f4f1ea;
+            padding: 30px;
+            border-radius: 8px;
+            max-width: 400px;
+            text-align: center;
+            border: 4px solid #5d5146;
+        }
+    </style>
+</head>
+<body class="flex flex-col items-center justify-center min-h-screen p-4">
+
+    <div id="game-info" class="mb-4 text-center">
+        <h1 class="text-2xl font-bold mb-1">谿山行旅：藝術大富翁</h1>
+        <p class="text-sm opacity-75 italic">體驗北宋范寬的筆墨意境</p>
+        <div class="flex gap-4 mt-2 justify-center">
+            <div class="bg-white/50 px-3 py-1 rounded border border-gray-300">體力: <span id="stamina" class="font-bold">20</span></div>
+            <div class="bg-white/50 px-3 py-1 rounded border border-gray-300">感悟: <span id="insight" class="font-bold">0</span></div>
+        </div>
+    </div>
+
+    <div class="board-container" id="board">
+        <!-- Center Piece -->
+        <div class="center-art">
+            <div class="center-overlay shadow-lg">
+                <p class="text-xs uppercase tracking-widest font-bold">范寬 真跡</p>
+                <button id="roll-btn" class="dice-btn mt-2 font-bold">投擲骰子</button>
+                <p id="dice-result" class="mt-1 text-sm text-red-800 h-5 font-bold"></p>
+            </div>
+        </div>
+        <!-- Cells will be generated here -->
+    </div>
+
+    <div id="event-modal" class="modal">
+        <div class="modal-content">
+            <h2 id="modal-title" class="text-xl font-bold mb-2"></h2>
+            <p id="modal-desc" class="mb-4"></p>
+            <button onclick="closeModal()" class="bg-slate-700 text-white px-6 py-2 rounded">領悟</button>
+        </div>
+    </div>
+
+    <div id="end-modal" class="modal">
+        <div class="modal-content">
+            <h2 class="text-2xl font-bold mb-2">旅途終點</h2>
+            <p id="final-score" class="mb-4"></p>
+            <button onclick="location.reload()" class="bg-red-800 text-white px-6 py-2 rounded">重新啟程</button>
+        </div>
+    </div>
+
+    <div id="player-token" class="player">我</div>
+
+    <script>
+        const boardCells = [
+            { name: "起點", type: "start", img: "https://images.unsplash.com/photo-1544084944-15269ec7b5a0?q=80&w=200&auto=format&fit=crop", desc: "準備進入終南山，感受造化之趣。" },
+            { name: "巨石擋路", type: "event", img: "https://images.unsplash.com/photo-1502481851512-e9e2529bbbf9?q=80&w=200&auto=format&fit=crop", desc: "近景巨石壓頂，氣勢雄厚。損失2點體力，獲得1點感悟。", stamina: -2, insight: 1 },
+            { name: "雨點皴", type: "buff", img: "https://images.unsplash.com/photo-1518331647614-7a1f04cd34cf?q=80&w=200&auto=format&fit=crop", desc: "領悟雨點皴法，筆力大增！獲得2點感悟。", stamina: 0, insight: 2 },
+            { name: "飛瀑雲騰", type: "event", img: "https://images.unsplash.com/photo-1433086566547-7987283e164e?q=80&w=200&auto=format&fit=crop", desc: "山凹飛瀑直下，水聲震耳。體力恢復3點。", stamina: 3, insight: 0 },
+            { name: "蘭若靜思", type: "rest", img: "https://images.unsplash.com/photo-1505273685824-3a9d25517c10?q=80&w=200&auto=format&fit=crop", desc: "在山間寺廟小憩。體力恢復5點。", stamina: 5, insight: 0 },
+            { name: "驢隊行旅", type: "event", img: "https://images.unsplash.com/photo-1516550893923-42d28e5677af?q=80&w=200&auto=format&fit=crop", desc: "巧遇驢隊，感受到畫中渺小生命力。獲得3點感悟。", stamina: 0, insight: 3 },
+            { name: "深山迷霧", type: "trap", img: "https://images.unsplash.com/photo-1444464666168-49d633b86747?q=80&w=200&auto=format&fit=crop", desc: "霧鎖寒山，難辨方位。損失4點體力。", stamina: -4, insight: 0 },
+            { name: "大嶺峻峰", type: "event", img: "https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?q=80&w=200&auto=format&fit=crop", desc: "登上頂峰，寫山真骨。獲得5點感悟。", stamina: -3, insight: 5 },
+            { name: "范寬落款", type: "special", img: "https://images.unsplash.com/photo-1582555172866-f73bb12a2ab3?q=80&w=200&auto=format&fit=crop", desc: "在樹蔭下發現范寬真跡落款！神聖的一刻。獲得10點感悟。", stamina: 0, insight: 10 },
+            { name: "董其昌題跋", type: "event", img: "https://images.unsplash.com/photo-1455390582262-044cdead277a?q=80&w=200&auto=format&fit=crop", desc: "見北宗大師題字，對北宗山水有了新的理解。獲得4點感悟。", stamina: 0, insight: 4 },
+            { name: "枯枝老樹", type: "event", img: "https://images.unsplash.com/photo-1473448912268-2022ce9509d8?q=80&w=200&auto=format&fit=crop", desc: "細觀蟹爪枝法，畫工細膩。獲得2點感悟。", stamina: -1, insight: 2 },
+            { name: "忠孝之家印", type: "event", img: "https://images.unsplash.com/photo-1578301978693-85fa9c0320b9?q=80&w=200&auto=format&fit=crop", desc: "觸摸蘇軾好友錢勰印記，感受歷史溫厚。獲得3點感悟。", stamina: 1, insight: 3 },
+            { name: "危坐終日", type: "rest", img: "https://images.unsplash.com/photo-1506126613408-eca07ce68773?q=80&w=200&auto=format&fit=crop", desc: "如范寬般對景造意。體力回滿，但需領悟。", stamina: 20, insight: 1 },
+            { name: "疏野風儀", type: "event", img: "https://images.unsplash.com/photo-1541447271487-09612b3f49f7?q=80&w=200&auto=format&fit=crop", desc: "舉止疏野，不拘於世。體力損失5點，獲得6點感悟。", stamina: -5, insight: 6 },
+            { name: "終南太華", type: "event", img: "https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?q=80&w=200&auto=format&fit=crop", desc: "隱居深山，師法造化。獲得8點感悟。", stamina: -2, insight: 8 },
+            { name: "路側車馬", type: "event", img: "https://images.unsplash.com/photo-1516550893923-42d28e5677af?q=80&w=200&auto=format&fit=crop", desc: "車馬紆行，山道蜿蜒。體力損失2點。", stamina: -2, insight: 1 },
+            { name: "谿山清響", type: "event", img: "https://images.unsplash.com/photo-1544084944-15269ec7b5a0?q=80&w=200&auto=format&fit=crop", desc: "聽風過松濤，流水潺潺。體力增加4點。", stamina: 4, insight: 1 },
+            { name: "筆勢雄厚", type: "buff", img: "https://images.unsplash.com/photo-1582555172866-f73bb12a2ab3?q=80&w=200&auto=format&fit=crop", desc: "筆力撲人眉宇，意境深遠。獲得5點感悟。", stamina: 0, insight: 5 },
+            { name: "嗜酒落魄", type: "trap", img: "https://images.unsplash.com/photo-1510812431401-41d2bd2722f3?q=80&w=200&auto=format&fit=crop", desc: "酒後落魄，暫停思考。損失3點體力。", stamina: -3, insight: 0 },
+            { name: "寫山真骨", type: "special", img: "https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?q=80&w=200&auto=format&fit=crop", desc: "大師之作，真骨盡現。獲得最高感悟！", stamina: -5, insight: 15 }
+        ];
+
+        // Map layout logic: Perimeter of a 6x6 grid
+        // Top: 0,1,2,3,4,5
+        // Right: 11,17,23,29 (if 6x6 full list)
+        // Simplified mapping for the 20 perimeter cells:
+        const perimeterMap = [
+            [0,0], [0,1], [0,2], [0,3], [0,4], [0,5], // Top
+            [1,5], [2,5], [3,5], [4,5], [5,5],         // Right
+            [5,4], [5,3], [5,2], [5,1], [5,0],         // Bottom
+            [4,0], [3,0], [2,0], [1,0]                  // Left
+        ];
+
+        let playerPos = 0;
+        let stamina = 20;
+        let insight = 0;
+        let isMoving = false;
+
+        const boardEl = document.getElementById('board');
+        const tokenEl = document.getElementById('player-token');
+
+        function initBoard() {
+            // Fill the grid with placeholders, then place cells and center
+            const grid = Array(6).fill().map(() => Array(6).fill(null));
+            
+            boardCells.forEach((cell, i) => {
+                const coords = perimeterMap[i];
+                const cellDiv = document.createElement('div');
+                cellDiv.className = `cell cell-${i}`;
+                cellDiv.style.gridColumn = coords[1] + 1;
+                cellDiv.style.gridRow = coords[0] + 1;
+                cellDiv.innerHTML = `
+                    <img src="${cell.img}" class="cell-img" alt="${cell.name}">
+                    <div class="font-bold">${cell.name}</div>
+                `;
+                boardEl.appendChild(cellDiv);
+            });
+            updatePlayerPosition();
+        }
+
+        function updatePlayerPosition() {
+            const coords = perimeterMap[playerPos];
+            const cellWidth = boardEl.offsetWidth / 6;
+            const cellHeight = boardEl.offsetHeight / 6;
+            
+            // Highlight current cell
+            document.querySelectorAll('.cell').forEach(c => c.classList.remove('active-cell'));
+            const activeCell = document.querySelector(`.cell-${playerPos}`);
+            if(activeCell) activeCell.classList.add('active-cell');
+
+            const boardRect = boardEl.getBoundingClientRect();
+            tokenEl.style.left = `${boardRect.left + coords[1] * cellWidth + cellWidth/2 - 15}px`;
+            tokenEl.style.top = `${boardRect.top + coords[0] * cellHeight + cellHeight/2 - 15}px`;
+        }
+
+        async function rollDice() {
+            if (isMoving || stamina <= 0) return;
+            isMoving = true;
+            
+            const roll = Math.floor(Math.random() * 6) + 1;
+            document.getElementById('dice-result').innerText = `擲出了 ${roll} 步`;
+            
+            for (let i = 0; i < roll; i++) {
+                playerPos = (playerPos + 1) % boardCells.length;
+                updatePlayerPosition();
+                await new Promise(r => setTimeout(r, 300));
+            }
+            
+            triggerEvent();
+            isMoving = false;
+        }
+
+        function triggerEvent() {
+            const cell = boardCells[playerPos];
+            stamina += (cell.stamina || 0);
+            insight += (cell.insight || 0);
+            
+            if (stamina > 20) stamina = 20;
+            
+            document.getElementById('stamina').innerText = stamina;
+            document.getElementById('insight').innerText = insight;
+            
+            showModal(cell.name, cell.desc);
+            
+            if (stamina <= 0) {
+                setTimeout(endGame, 1000);
+            }
+        }
+
+        function showModal(title, desc) {
+            document.getElementById('modal-title').innerText = title;
+            document.getElementById('modal-desc').innerText = desc;
+            document.getElementById('event-modal').style.display = 'flex';
+        }
+
+        function closeModal() {
+            document.getElementById('event-modal').style.display = 'none';
+        }
+
+        function endGame() {
+            const final = document.getElementById('final-score');
+            let rank = "初窺門徑";
+            if (insight > 30) rank = "筆墨大師";
+            else if (insight > 15) rank = "意境入畫";
+
+            final.innerHTML = `
+                你的旅程結束了。<br>
+                總感悟：<span class="text-2xl font-bold text-red-800">${insight}</span><br>
+                獲得評價：<span class="font-bold">${rank}</span>
+            `;
+            document.getElementById('end-modal').style.display = 'flex';
+        }
+
+        window.onload = initBoard;
+        window.onresize = updatePlayerPosition;
+        document.getElementById('roll-btn').onclick = rollDice;
+
+    </script>
+</body>
+</html>
